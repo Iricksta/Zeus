@@ -1,0 +1,1445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>StreamVault — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root {
+    --bg: #03050f;
+    --bg2: #080c1a;
+    --bg3: #0d1225;
+    --surface: #111827;
+    --border: #1e2a3a;
+    --border2: #243044;
+    --accent: #00d4ff;
+    --accent2: #0055ff;
+    --accent-dim: rgba(0,212,255,0.12);
+    --text: #f0f4ff;
+    --text2: #8899bb;
+    --text3: #445566;
+    --red: #ff3355;
+    --green: #00e87a;
+    --orange: #ff8c00;
+    --gold: #ffd700;
+    --font-display: 'Syne', sans-serif;
+    --font-body: 'DM Sans', sans-serif;
+    --r: 14px;
+    --r2: 10px;
+    --shadow: 0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Animated background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 600px 400px at 10% 20%, rgba(0,80,255,0.06) 0%, transparent 70%),
+      radial-gradient(ellipse 500px 350px at 90% 80%, rgba(0,212,255,0.05) 0%, transparent 70%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ── Layout ── */
+  .app { display: flex; min-height: 100vh; position: relative; z-index: 1; }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 240px;
+    background: var(--bg2);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    z-index: 100;
+    transition: transform 0.3s ease;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 28px 24px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo-icon {
+    width: 40px; height: 40px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; color: #fff;
+    flex-shrink: 0;
+  }
+
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 18px;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  nav { flex: 1; padding: 16px 12px; display: flex; flex-direction: column; gap: 2px; }
+
+  .nav-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 11px 14px;
+    border-radius: var(--r2);
+    cursor: pointer;
+    transition: all 0.15s;
+    color: var(--text2);
+    font-size: 14px;
+    font-weight: 500;
+    border: none; background: none; width: 100%; text-align: left;
+  }
+
+  .nav-item:hover { background: var(--bg3); color: var(--text); }
+  .nav-item.active { background: var(--accent-dim); color: var(--accent); }
+  .nav-item .nav-icon { font-size: 17px; width: 20px; text-align: center; flex-shrink: 0; }
+
+  .nav-section-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--text3);
+    padding: 16px 14px 6px;
+  }
+
+  .sidebar-bottom {
+    padding: 16px;
+    border-top: 1px solid var(--border);
+  }
+
+  .household-id {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--r2);
+    padding: 12px;
+  }
+
+  .household-id-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    color: var(--text3);
+    margin-bottom: 6px;
+  }
+
+  .household-id-value {
+    font-size: 11px;
+    color: var(--text2);
+    word-break: break-all;
+    line-height: 1.5;
+    font-family: monospace;
+  }
+
+  .copy-btn {
+    margin-top: 8px;
+    width: 100%;
+    background: var(--border);
+    border: none;
+    color: var(--text2);
+    font-size: 12px;
+    padding: 7px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+  }
+  .copy-btn:hover { background: var(--accent-dim); color: var(--accent); }
+
+  /* ── Main content ── */
+  .main {
+    margin-left: 240px;
+    flex: 1;
+    padding: 32px;
+    min-height: 100vh;
+  }
+
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── Page header ── */
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+  }
+
+  .page-title {
+    font-family: var(--font-display);
+    font-size: 28px;
+    font-weight: 800;
+  }
+
+  .page-subtitle { color: var(--text2); font-size: 14px; margin-top: 4px; }
+
+  /* ── Cards / Surfaces ── */
+  .card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 24px;
+  }
+
+  .card-sm { padding: 16px; }
+
+  /* ── Stats row ── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  }
+
+  .stat-value {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 6px;
+  }
+
+  .stat-label { color: var(--text2); font-size: 13px; }
+
+  /* ── Section title ── */
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 700;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  /* ── Profiles grid ── */
+  .profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .profile-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+  }
+
+  .profile-card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 32px rgba(0,212,255,0.1); }
+  .profile-card.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+  .profile-avatar {
+    width: 64px; height: 64px;
+    background: var(--bg3);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px;
+    border: 2px solid var(--border);
+    position: relative;
+  }
+
+  .profile-card.selected .profile-avatar { border-color: var(--accent); }
+
+  .profile-name {
+    font-family: var(--font-display);
+    font-size: 15px;
+    font-weight: 700;
+  }
+
+  .profile-badges { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+
+  .badge {
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+  }
+
+  .badge-kids { background: rgba(255,140,0,0.15); color: var(--orange); }
+  .badge-pin { background: rgba(0,212,255,0.1); color: var(--accent); }
+  .badge-active { background: rgba(0,232,122,0.1); color: var(--green); }
+
+  .profile-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+
+  .add-profile-card {
+    background: transparent;
+    border: 2px dashed var(--border2);
+    border-radius: var(--r);
+    padding: 24px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    min-height: 180px;
+    color: var(--text3);
+  }
+
+  .add-profile-card:hover { border-color: var(--accent); color: var(--accent); }
+
+  .add-profile-card .plus { font-size: 32px; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 18px;
+    border-radius: var(--r2);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s;
+    font-family: var(--font-body);
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #fff;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--text2);
+    border: 1px solid var(--border2);
+  }
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); }
+
+  .btn-danger { background: rgba(255,51,85,0.1); color: var(--red); border: 1px solid rgba(255,51,85,0.2); }
+  .btn-danger:hover { background: rgba(255,51,85,0.2); }
+
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .btn-xs { padding: 4px 8px; font-size: 11px; }
+
+  /* ── Addon rows ── */
+  .addon-list { display: flex; flex-direction: column; gap: 2px; }
+
+  .addon-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px 16px;
+    border-radius: var(--r2);
+    border: 1px solid transparent;
+    transition: all 0.15s;
+  }
+
+  .addon-row:hover { background: var(--bg3); border-color: var(--border); }
+
+  .addon-icon {
+    width: 38px; height: 38px;
+    background: var(--bg3);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  .addon-info { flex: 1; min-width: 0; }
+  .addon-name { font-weight: 600; font-size: 14px; }
+  .addon-meta { color: var(--text2); font-size: 12px; margin-top: 2px; }
+
+  .addon-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+
+  /* Toggle switch */
+  .toggle {
+    width: 44px; height: 24px;
+    background: var(--border2);
+    border-radius: 12px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+    border: none;
+    flex-shrink: 0;
+  }
+
+  .toggle.on { background: var(--accent); }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px; left: 3px;
+    width: 18px; height: 18px;
+    background: #fff;
+    border-radius: 50%;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  }
+
+  .toggle.on::after { transform: translateX(20px); }
+
+  /* ── Table ── */
+  .table { width: 100%; border-collapse: collapse; }
+  .table th { color: var(--text3); font-size: 11px; font-weight: 700; letter-spacing: 1.5px; text-align: left; padding: 0 16px 12px; border-bottom: 1px solid var(--border); }
+  .table td { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+  .table tr:last-child td { border-bottom: none; }
+  .table tr:hover td { background: rgba(255,255,255,0.02); }
+
+  .poster-thumb {
+    width: 32px; height: 48px;
+    border-radius: 6px;
+    object-fit: cover;
+    background: var(--bg3);
+  }
+
+  /* ── Progress bar ── */
+  .progress-bar {
+    height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+    overflow: hidden;
+    width: 100px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+  }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+    padding: 20px;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 32px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow);
+    animation: slideUp 0.2s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal-title {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 800;
+    margin-bottom: 24px;
+  }
+
+  .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+
+  /* ── Form elements ── */
+  .form-group { margin-bottom: 18px; }
+  .form-label { font-size: 11px; font-weight: 700; letter-spacing: 1.5px; color: var(--text3); margin-bottom: 8px; display: block; }
+
+  .form-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    border-radius: var(--r2);
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 14px;
+    font-family: var(--font-body);
+    outline: none;
+    transition: border-color 0.15s;
+  }
+
+  .form-input:focus { border-color: var(--accent); }
+  .form-input::placeholder { color: var(--text3); }
+
+  /* ── Avatar picker ── */
+  .avatar-picker {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .avatar-opt {
+    width: 48px; height: 48px;
+    background: var(--bg3);
+    border: 2px solid transparent;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 22px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.15s;
+  }
+
+  .avatar-opt:hover { border-color: var(--border2); }
+  .avatar-opt.selected { border-color: var(--accent); background: var(--accent-dim); }
+
+  /* ── Empty state ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text3);
+  }
+
+  .empty-state .empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .empty-state .empty-title { font-size: 16px; font-weight: 700; color: var(--text2); margin-bottom: 8px; }
+  .empty-state .empty-sub { font-size: 13px; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--r2);
+    padding: 14px 20px;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: var(--shadow);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
+    max-width: 320px;
+  }
+
+  .toast.show { transform: translateY(0); opacity: 1; }
+  .toast.success { border-left: 3px solid var(--green); }
+  .toast.error { border-left: 3px solid var(--red); }
+
+  /* ── Connect screen ── */
+  .connect-screen {
+    max-width: 480px;
+    margin: 80px auto;
+    text-align: center;
+  }
+
+  .connect-logo {
+    width: 80px; height: 80px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-radius: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 36px;
+    margin: 0 auto 24px;
+  }
+
+  .connect-title {
+    font-family: var(--font-display);
+    font-size: 32px;
+    font-weight: 800;
+    margin-bottom: 12px;
+  }
+
+  .connect-sub { color: var(--text2); font-size: 15px; line-height: 1.6; margin-bottom: 32px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+
+  /* ── Responsive ── */
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .main { margin-left: 0; padding: 20px; }
+    .mobile-menu-btn { display: flex !important; }
+  }
+
+  .mobile-menu-btn {
+    display: none;
+    position: fixed;
+    top: 16px; left: 16px;
+    z-index: 200;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    font-size: 18px;
+  }
+
+  /* ── Misc ── */
+  .flex { display: flex; }
+  .items-center { align-items: center; }
+  .gap-2 { gap: 8px; }
+  .gap-3 { gap: 12px; }
+  .mt-4 { margin-top: 16px; }
+  .mt-6 { margin-top: 24px; }
+  .text-accent { color: var(--accent); }
+  .text-muted { color: var(--text2); font-size: 13px; }
+  .text-danger { color: var(--red); }
+  .fw-700 { font-weight: 700; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 640px) { .grid-2 { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+
+<button class="mobile-menu-btn" onclick="toggleSidebar()">☰</button>
+
+<!-- Connect screen (shown if no household ID) -->
+<div id="connect-screen" style="display:none; padding: 20px; position:relative; z-index:1;">
+  <div class="connect-screen">
+    <div class="connect-logo">▶</div>
+    <h1 class="connect-title">StreamVault</h1>
+    <p class="connect-sub">Enter your Household ID to connect this dashboard to your family's StreamVault app. You'll find the ID in the app under Settings → Household ID.</p>
+    <div class="form-group" style="text-align:left;">
+      <label class="form-label">HOUSEHOLD ID</label>
+      <input class="form-input" id="household-id-input" placeholder="Paste your Household ID here..." style="font-family:monospace;">
+    </div>
+    <button class="btn btn-primary" style="width:100%; justify-content:center; padding:14px;" onclick="connectHousehold()">Connect Dashboard →</button>
+    <p class="text-muted" style="margin-top:16px; font-size:12px;">Or create a new household if this is your first time:</p>
+    <button class="btn btn-ghost" style="width:100%; justify-content:center; margin-top:8px;" onclick="createNewHousehold()">Create New Household</button>
+  </div>
+</div>
+
+<!-- Main app -->
+<div class="app" id="main-app" style="display:none;">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">
+      <div class="logo-icon">▶</div>
+      <div class="logo-text">Stream<span>Vault</span></div>
+    </div>
+
+    <nav>
+      <div class="nav-section-label">OVERVIEW</div>
+      <button class="nav-item active" onclick="showPage('dashboard', this)">
+        <span class="nav-icon">⬡</span> Dashboard
+      </button>
+      <button class="nav-item" onclick="showPage('profiles', this)">
+        <span class="nav-icon">👥</span> Profiles
+      </button>
+
+      <div class="nav-section-label">CONTENT</div>
+      <button class="nav-item" onclick="showPage('continue', this)">
+        <span class="nav-icon">▶</span> Continue Watching
+      </button>
+      <button class="nav-item" onclick="showPage('favorites', this)">
+        <span class="nav-icon">♥</span> Favorites
+      </button>
+      <button class="nav-item" onclick="showPage('watchlist', this)">
+        <span class="nav-icon">+</span> Watchlist
+      </button>
+      <button class="nav-item" onclick="showPage('history', this)">
+        <span class="nav-icon">◷</span> Watch History
+      </button>
+
+      <div class="nav-section-label">SETTINGS</div>
+      <button class="nav-item" onclick="showPage('addons', this)">
+        <span class="nav-icon">⚡</span> Addons
+      </button>
+      <button class="nav-item" onclick="showPage('settings', this)">
+        <span class="nav-icon">⚙</span> Settings
+      </button>
+    </nav>
+
+    <div class="sidebar-bottom">
+      <div class="household-id">
+        <div class="household-id-label">HOUSEHOLD ID</div>
+        <div class="household-id-value" id="sidebar-household-id">Loading...</div>
+        <button class="copy-btn" onclick="copyHouseholdId()">📋 Copy ID</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+
+    <!-- Profile selector bar -->
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:28px; flex-wrap:wrap;">
+      <span style="font-size:13px; color:var(--text2); font-weight:600;">Viewing:</span>
+      <div id="profile-selector" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Dashboard</h1>
+          <p class="page-subtitle">Your family's StreamVault overview</p>
+        </div>
+        <button class="btn btn-primary" onclick="refreshAll()">↻ Refresh</button>
+      </div>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="stat-value" id="stat-profiles">—</div><div class="stat-label">Profiles</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-addons">—</div><div class="stat-label">Addons Installed</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-watched">—</div><div class="stat-label">Items Watched</div></div>
+        <div class="stat-card"><div class="stat-value" id="stat-watchlist">—</div><div class="stat-label">In Watchlist</div></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <div class="section-title">▶ Continue Watching</div>
+          <div id="dash-continue"></div>
+        </div>
+        <div class="card">
+          <div class="section-title">◷ Recent History</div>
+          <div id="dash-history"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Profiles -->
+    <div class="page" id="page-profiles">
+      <div class="page-header">
+        <div>
+          <h1 class="page-title">Profiles</h1>
+          <p class="page-subtitle">Manage your family profiles</p>
+        </div>
+        <button class="btn btn-primary" onclick="openCreateProfile()">+ New Profile</button>
+      </div>
+      <div class="profiles-grid" id="profiles-grid"></div>
+    </div>
+
+    <!-- Continue Watching -->
+    <div class="page" id="page-continue">
+      <div class="page-header">
+        <div><h1 class="page-title">Continue Watching</h1><p class="page-subtitle" id="continue-subtitle"></p></div>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th></th><th>TITLE</th><th>PROGRESS</th><th>EPISODE</th><th>LAST WATCHED</th><th></th></tr></thead>
+          <tbody id="continue-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Favorites -->
+    <div class="page" id="page-favorites">
+      <div class="page-header">
+        <div><h1 class="page-title">Favorites</h1><p class="page-subtitle" id="favorites-subtitle"></p></div>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th></th><th>TITLE</th><th>TYPE</th><th>YEAR</th><th>RATING</th><th></th></tr></thead>
+          <tbody id="favorites-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Watchlist -->
+    <div class="page" id="page-watchlist">
+      <div class="page-header">
+        <div><h1 class="page-title">Watchlist</h1><p class="page-subtitle" id="watchlist-subtitle"></p></div>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th></th><th>TITLE</th><th>TYPE</th><th>YEAR</th><th>ADDED</th><th></th></tr></thead>
+          <tbody id="watchlist-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- History -->
+    <div class="page" id="page-history">
+      <div class="page-header">
+        <div><h1 class="page-title">Watch History</h1><p class="page-subtitle" id="history-subtitle"></p></div>
+        <button class="btn btn-danger btn-sm" onclick="clearHistory()">Clear History</button>
+      </div>
+      <div class="card">
+        <table class="table">
+          <thead><tr><th></th><th>TITLE</th><th>TYPE</th><th>WATCHED</th></tr></thead>
+          <tbody id="history-table"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Addons -->
+    <div class="page" id="page-addons">
+      <div class="page-header">
+        <div><h1 class="page-title">Addons</h1><p class="page-subtitle" id="addons-subtitle"></p></div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="openCopyAddons()">Copy from profile</button>
+          <button class="btn btn-primary btn-sm" onclick="openInstallAddon()">+ Install Addon</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="addon-list" id="addons-list"></div>
+      </div>
+
+      <div class="mt-6">
+        <div class="section-title">⚡ Popular Addons</div>
+        <div class="card">
+          <div class="addon-list" id="popular-addons-list"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Settings -->
+    <div class="page" id="page-settings">
+      <div class="page-header">
+        <div><h1 class="page-title">Settings</h1><p class="page-subtitle">Household & app configuration</p></div>
+      </div>
+      <div style="max-width:600px;">
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-title">🏠 Household</div>
+          <p class="text-muted" style="margin-bottom:16px;">Your Household ID connects all your devices to the same data. Share it when setting up a new device.</p>
+          <div style="background:var(--bg3); border:1px solid var(--border); border-radius:10px; padding:16px; font-family:monospace; font-size:13px; word-break:break-all; color:var(--text2); margin-bottom:12px;" id="settings-household-id"></div>
+          <button class="btn btn-ghost" onclick="copyHouseholdId()">📋 Copy Household ID</button>
+        </div>
+
+        <div class="card" style="margin-bottom:16px;">
+          <div class="section-title">🔗 Connect New Device</div>
+          <p class="text-muted" style="margin-bottom:16px;">On a new phone or TV, open the app → Settings → Connect to Household → paste this ID.</p>
+          <div style="background: var(--accent-dim); border: 1px solid rgba(0,212,255,0.2); border-radius:10px; padding:16px;">
+            <p style="font-size:13px; color:var(--accent);">📱 Your Household ID is the key that links all devices. Keep it private — anyone with this ID can see your family's data.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="section-title" style="color:var(--red);">⚠ Danger Zone</div>
+          <p class="text-muted" style="margin-bottom:16px;">These actions cannot be undone.</p>
+          <button class="btn btn-danger" onclick="disconnectDashboard()">Disconnect This Dashboard</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ── Modals ── -->
+
+<!-- Create Profile -->
+<div class="modal-overlay" id="modal-create-profile">
+  <div class="modal">
+    <div class="modal-title">Create Profile</div>
+    <div class="form-group">
+      <label class="form-label">CHOOSE AVATAR</label>
+      <div class="avatar-picker" id="avatar-picker"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label">NAME</label>
+      <input class="form-input" id="new-profile-name" placeholder="e.g. Dad, Mum, Kids...">
+    </div>
+    <div class="form-group">
+      <label class="form-label">OPTIONS</label>
+      <label style="display:flex;align-items:center;gap:10px;cursor:pointer;color:var(--text2);font-size:14px;">
+        <input type="checkbox" id="new-profile-kids" style="accent-color:var(--accent);"> Kids profile (restricted content)
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-create-profile')">Cancel</button>
+      <button class="btn btn-primary" onclick="createProfile()">Create Profile</button>
+    </div>
+  </div>
+</div>
+
+<!-- Install Addon -->
+<div class="modal-overlay" id="modal-install-addon">
+  <div class="modal">
+    <div class="modal-title">Install Addon</div>
+    <p class="text-muted" style="margin-bottom:20px;">Supports all Stremio-compatible addons. Paste any manifest URL.</p>
+    <div class="form-group">
+      <label class="form-label">MANIFEST URL</label>
+      <input class="form-input" id="addon-url-input" placeholder="https://addon.example.com/manifest.json" style="font-family:monospace;font-size:13px;">
+    </div>
+    <div id="addon-install-error" style="color:var(--red);font-size:13px;margin-bottom:12px;display:none;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-install-addon')">Cancel</button>
+      <button class="btn btn-primary" id="install-addon-btn" onclick="installAddon()">Install Addon</button>
+    </div>
+  </div>
+</div>
+
+<!-- Copy Addons -->
+<div class="modal-overlay" id="modal-copy-addons">
+  <div class="modal">
+    <div class="modal-title">Copy Addons From Profile</div>
+    <p class="text-muted" style="margin-bottom:20px;">Select a profile to copy all their addons to the current profile.</p>
+    <div id="copy-addons-profiles" style="display:flex;flex-direction:column;gap:8px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-copy-addons')">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://yyyzgoutxsgthlhlnzyn.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl5eXpnb3V0eHNndGhsaGxuenluIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNjY1MjgsImV4cCI6MjA4ODk0MjUyOH0.02P8ol0yqF5L1DNdD3QNlcqs_NGDa-b6v7RA2vVvC48';
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const AVATARS = ['🎬','🎭','🍿','🎮','🚀','🦁','🐉','⚡','🌙','🔥','👑','🎵'];
+const POPULAR_ADDONS = [
+  { name: 'Torrentio', url: 'https://torrentio.strem.fun/manifest.json', desc: 'Best torrent streams', icon: '🌊' },
+  { name: 'Cinemeta', url: 'https://v3-cinemeta.strem.io/manifest.json', desc: 'Official movie & TV catalog', icon: '🎬' },
+  { name: 'KitSu Anime', url: 'https://anime-kitsu.strem.fun/manifest.json', desc: 'Full anime catalog', icon: '⛩' },
+  { name: 'OpenSubtitles', url: 'https://opensubtitles-v3.strem.io/manifest.json', desc: 'Subtitles for everything', icon: '💬' },
+  { name: 'RPDB Posters', url: 'https://rpdb.strem.fun/manifest.json', desc: 'Rating-based posters', icon: '🖼' },
+];
+
+let state = {
+  householdId: null,
+  profiles: [],
+  activeProfileId: null,
+  selectedAvatar: AVATARS[0],
+};
+
+// ── Init ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const stored = localStorage.getItem('sv_household_id');
+  if (stored) {
+    state.householdId = stored;
+    showApp();
+    await loadAll();
+  } else {
+    document.getElementById('connect-screen').style.display = 'block';
+  }
+  renderAvatarPicker();
+  renderPopularAddons();
+});
+
+function showApp() {
+  document.getElementById('connect-screen').style.display = 'none';
+  document.getElementById('main-app').style.display = 'flex';
+  document.getElementById('sidebar-household-id').textContent = state.householdId;
+  document.getElementById('settings-household-id').textContent = state.householdId;
+}
+
+// ── Household connect ─────────────────────────────────────────
+async function connectHousehold() {
+  const id = document.getElementById('household-id-input').value.trim();
+  if (!id) return toast('Please enter a Household ID', 'error');
+  const { data, error } = await db.from('households').select().eq('id', id).single();
+  if (error || !data) return toast('Household not found. Check the ID and try again.', 'error');
+  localStorage.setItem('sv_household_id', id);
+  state.householdId = id;
+  showApp();
+  await loadAll();
+  toast('Connected to household!', 'success');
+}
+
+async function createNewHousehold() {
+  const { data, error } = await db.from('households').insert({ name: 'My Family' }).select().single();
+  if (error) return toast('Failed to create household: ' + error.message, 'error');
+  localStorage.setItem('sv_household_id', data.id);
+  state.householdId = data.id;
+  showApp();
+  await loadAll();
+  toast('New household created!', 'success');
+}
+
+function disconnectDashboard() {
+  if (!confirm('Disconnect this dashboard? Your data stays safe in the cloud.')) return;
+  localStorage.removeItem('sv_household_id');
+  location.reload();
+}
+
+// ── Load all data ─────────────────────────────────────────────
+async function loadAll() {
+  const { data: profiles } = await db.from('profiles').select('*').eq('household_id', state.householdId).order('created_at');
+  state.profiles = profiles || [];
+  if (!state.activeProfileId && state.profiles.length > 0) {
+    state.activeProfileId = state.profiles[0].id;
+  }
+  renderProfileSelector();
+  renderProfilesPage();
+  await loadDashboard();
+  updateStats();
+}
+
+async function refreshAll() {
+  await loadAll();
+  await loadCurrentPage();
+  toast('Refreshed!', 'success');
+}
+
+async function loadCurrentPage() {
+  const activePage = document.querySelector('.page.active')?.id?.replace('page-', '');
+  if (activePage) await loadPageData(activePage);
+}
+
+// ── Profile selector bar ──────────────────────────────────────
+function renderProfileSelector() {
+  const el = document.getElementById('profile-selector');
+  el.innerHTML = state.profiles.map(p => `
+    <button onclick="selectProfile('${p.id}')" style="
+      display:flex;align-items:center;gap:8px;
+      background:${state.activeProfileId === p.id ? 'var(--accent-dim)' : 'var(--bg2)'};
+      border:1px solid ${state.activeProfileId === p.id ? 'var(--accent)' : 'var(--border)'};
+      color:${state.activeProfileId === p.id ? 'var(--accent)' : 'var(--text2)'};
+      padding:6px 14px;border-radius:20px;cursor:pointer;font-size:13px;font-weight:600;
+      font-family:var(--font-body);transition:all 0.15s;
+    ">
+      <span>${p.avatar}</span>${p.name}
+    </button>
+  `).join('');
+}
+
+function selectProfile(id) {
+  state.activeProfileId = id;
+  renderProfileSelector();
+  loadCurrentPage();
+}
+
+// ── Dashboard ─────────────────────────────────────────────────
+async function loadDashboard() {
+  if (!state.activeProfileId) return;
+  const [cont, hist] = await Promise.all([
+    db.from('continue_watching').select('*').eq('profile_id', state.activeProfileId).order('updated_at', { ascending: false }).limit(5),
+    db.from('watch_history').select('*').eq('profile_id', state.activeProfileId).order('watched_at', { ascending: false }).limit(5),
+  ]);
+
+  const contEl = document.getElementById('dash-continue');
+  const histEl = document.getElementById('dash-history');
+
+  if (!cont.data?.length) {
+    contEl.innerHTML = '<div class="empty-state" style="padding:30px 0;"><div class="empty-icon">▶</div><p class="empty-sub">Nothing in progress</p></div>';
+  } else {
+    contEl.innerHTML = cont.data.map(item => {
+      const pct = item.duration_seconds > 0 ? Math.round((item.progress_seconds / item.duration_seconds) * 100) : 0;
+      return `<div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <div style="width:36px;height:54px;background:var(--bg3);border-radius:6px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:20px;">🎬</div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.title}</div>
+          <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div style="color:var(--text3);font-size:11px;margin-top:4px;">${pct}% watched</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  if (!hist.data?.length) {
+    histEl.innerHTML = '<div class="empty-state" style="padding:30px 0;"><div class="empty-icon">◷</div><p class="empty-sub">No history yet</p></div>';
+  } else {
+    histEl.innerHTML = hist.data.map(item => `
+      <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);">
+        <span style="font-size:20px;">🎬</span>
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${item.title}</div>
+          <div style="color:var(--text3);font-size:11px;margin-top:2px;">${formatDate(item.watched_at)}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+async function updateStats() {
+  document.getElementById('stat-profiles').textContent = state.profiles.length;
+  if (!state.activeProfileId) return;
+  const [addons, hist, wl] = await Promise.all([
+    db.from('addons').select('id', { count: 'exact', head: true }).eq('profile_id', state.activeProfileId),
+    db.from('watch_history').select('id', { count: 'exact', head: true }).eq('profile_id', state.activeProfileId),
+    db.from('watchlist').select('id', { count: 'exact', head: true }).eq('profile_id', state.activeProfileId),
+  ]);
+  document.getElementById('stat-addons').textContent = addons.count ?? '—';
+  document.getElementById('stat-watched').textContent = hist.count ?? '—';
+  document.getElementById('stat-watchlist').textContent = wl.count ?? '—';
+}
+
+// ── Profiles page ─────────────────────────────────────────────
+function renderProfilesPage() {
+  const grid = document.getElementById('profiles-grid');
+  grid.innerHTML = state.profiles.map(p => `
+    <div class="profile-card ${state.activeProfileId === p.id ? 'selected' : ''}" onclick="selectProfile('${p.id}')">
+      <div class="profile-avatar">${p.avatar}</div>
+      <div class="profile-name">${p.name}</div>
+      <div class="profile-badges">
+        ${state.activeProfileId === p.id ? '<span class="badge badge-active">Active</span>' : ''}
+        ${p.is_kids ? '<span class="badge badge-kids">Kids</span>' : ''}
+        ${p.pin_hash ? '<span class="badge badge-pin">🔒 PIN</span>' : ''}
+      </div>
+      <div class="profile-actions" onclick="event.stopPropagation()">
+        <button class="btn btn-ghost btn-xs" onclick="deleteProfile('${p.id}','${p.name}')">Delete</button>
+      </div>
+    </div>
+  `).join('') + `
+    <div class="add-profile-card" onclick="openCreateProfile()">
+      <div class="plus">+</div>
+      <span style="font-size:13px;font-weight:600;">Add Profile</span>
+    </div>
+  `;
+}
+
+// ── Create profile ────────────────────────────────────────────
+function openCreateProfile() {
+  document.getElementById('new-profile-name').value = '';
+  document.getElementById('new-profile-kids').checked = false;
+  state.selectedAvatar = AVATARS[0];
+  renderAvatarPicker();
+  openModal('modal-create-profile');
+}
+
+async function createProfile() {
+  const name = document.getElementById('new-profile-name').value.trim();
+  const isKids = document.getElementById('new-profile-kids').checked;
+  if (!name) return toast('Please enter a name', 'error');
+
+  const { data, error } = await db.from('profiles').insert({
+    household_id: state.householdId,
+    name: name.substring(0, 30),
+    avatar: state.selectedAvatar,
+    is_kids: isKids,
+    settings: {},
+  }).select().single();
+
+  if (error) return toast('Failed: ' + error.message, 'error');
+  closeModal('modal-create-profile');
+  await loadAll();
+  toast(`Profile "${name}" created!`, 'success');
+}
+
+async function deleteProfile(id, name) {
+  if (!confirm(`Delete profile "${name}"? All their data will be permanently removed.`)) return;
+  await db.from('profiles').delete().eq('id', id);
+  if (state.activeProfileId === id) state.activeProfileId = null;
+  await loadAll();
+  toast(`Profile deleted`, 'success');
+}
+
+// ── Avatar picker ─────────────────────────────────────────────
+function renderAvatarPicker() {
+  const el = document.getElementById('avatar-picker');
+  if (!el) return;
+  el.innerHTML = AVATARS.map(a => `
+    <button class="avatar-opt ${state.selectedAvatar === a ? 'selected' : ''}" onclick="selectAvatar('${a}')">${a}</button>
+  `).join('');
+}
+
+function selectAvatar(a) {
+  state.selectedAvatar = a;
+  renderAvatarPicker();
+}
+
+// ── Page data loading ─────────────────────────────────────────
+async function loadPageData(page) {
+  if (!state.activeProfileId) return;
+  const profile = state.profiles.find(p => p.id === state.activeProfileId);
+  const pname = profile?.name || 'Profile';
+
+  if (page === 'dashboard') { await loadDashboard(); await updateStats(); }
+
+  else if (page === 'continue') {
+    document.getElementById('continue-subtitle').textContent = `${pname}'s progress`;
+    const { data } = await db.from('continue_watching').select('*').eq('profile_id', state.activeProfileId).order('updated_at', { ascending: false });
+    const tbody = document.getElementById('continue-table');
+    if (!data?.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">▶</div><p class="empty-title">Nothing in progress</p></div></td></tr>`; return; }
+    tbody.innerHTML = data.map(item => {
+      const pct = item.duration_seconds > 0 ? Math.round((item.progress_seconds / item.duration_seconds) * 100) : 0;
+      const ep = item.season ? `S${item.season}E${item.episode}` : '—';
+      return `<tr>
+        <td><div style="width:32px;height:48px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;">🎬</div></td>
+        <td><div style="font-weight:600;">${item.title}</div><div style="color:var(--text3);font-size:12px;">${item.content_type}</div></td>
+        <td><div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div><div style="color:var(--text3);font-size:11px;margin-top:4px;">${pct}%</div></td>
+        <td style="color:var(--text2)">${ep}</td>
+        <td style="color:var(--text2);font-size:13px;">${formatDate(item.updated_at)}</td>
+        <td><button class="btn btn-danger btn-xs" onclick="removeItem('continue_watching','${item.id}','continue')">✕</button></td>
+      </tr>`;
+    }).join('');
+  }
+
+  else if (page === 'favorites') {
+    document.getElementById('favorites-subtitle').textContent = `${pname}'s favorites`;
+    const { data } = await db.from('favorites').select('*').eq('profile_id', state.activeProfileId).order('added_at', { ascending: false });
+    const tbody = document.getElementById('favorites-table');
+    if (!data?.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">♥</div><p class="empty-title">No favorites yet</p></div></td></tr>`; return; }
+    tbody.innerHTML = data.map(item => `<tr>
+      <td><div style="width:32px;height:48px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;">🎬</div></td>
+      <td><div style="font-weight:600;">${item.title}</div></td>
+      <td><span style="color:${item.content_type==='movie'?'var(--accent)':'var(--orange)'};font-size:12px;font-weight:700;">${item.content_type}</span></td>
+      <td style="color:var(--text2)">${item.year || '—'}</td>
+      <td style="color:var(--gold)">${item.imdb_rating ? '⭐ ' + item.imdb_rating : '—'}</td>
+      <td><button class="btn btn-danger btn-xs" onclick="removeItem('favorites','${item.id}','favorites')">✕</button></td>
+    </tr>`).join('');
+  }
+
+  else if (page === 'watchlist') {
+    document.getElementById('watchlist-subtitle').textContent = `${pname}'s watchlist`;
+    const { data } = await db.from('watchlist').select('*').eq('profile_id', state.activeProfileId).order('added_at', { ascending: false });
+    const tbody = document.getElementById('watchlist-table');
+    if (!data?.length) { tbody.innerHTML = `<tr><td colspan="6"><div class="empty-state"><div class="empty-icon">+</div><p class="empty-title">Watchlist is empty</p></div></td></tr>`; return; }
+    tbody.innerHTML = data.map(item => `<tr>
+      <td><div style="width:32px;height:48px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;">🎬</div></td>
+      <td><div style="font-weight:600;">${item.title}</div></td>
+      <td><span style="color:${item.content_type==='movie'?'var(--accent)':'var(--orange)'};font-size:12px;font-weight:700;">${item.content_type}</span></td>
+      <td style="color:var(--text2)">${item.year || '—'}</td>
+      <td style="color:var(--text3);font-size:12px;">${formatDate(item.added_at)}</td>
+      <td><button class="btn btn-danger btn-xs" onclick="removeItem('watchlist','${item.id}','watchlist')">✕</button></td>
+    </tr>`).join('');
+  }
+
+  else if (page === 'history') {
+    document.getElementById('history-subtitle').textContent = `${pname}'s watch history`;
+    const { data } = await db.from('watch_history').select('*').eq('profile_id', state.activeProfileId).order('watched_at', { ascending: false }).limit(200);
+    const tbody = document.getElementById('history-table');
+    if (!data?.length) { tbody.innerHTML = `<tr><td colspan="4"><div class="empty-state"><div class="empty-icon">◷</div><p class="empty-title">No history yet</p></div></td></tr>`; return; }
+    tbody.innerHTML = data.map(item => `<tr>
+      <td><div style="width:32px;height:48px;background:var(--bg3);border-radius:6px;display:flex;align-items:center;justify-content:center;">🎬</div></td>
+      <td><div style="font-weight:600;">${item.title}</div></td>
+      <td><span style="color:${item.content_type==='movie'?'var(--accent)':'var(--orange)'};font-size:12px;font-weight:700;">${item.content_type}</span></td>
+      <td style="color:var(--text2);font-size:13px;">${formatDate(item.watched_at)}</td>
+    </tr>`).join('');
+  }
+
+  else if (page === 'addons') {
+    document.getElementById('addons-subtitle').textContent = `Managing addons for ${pname}`;
+    const { data } = await db.from('addons').select('*').eq('profile_id', state.activeProfileId).order('created_at');
+    const el = document.getElementById('addons-list');
+    if (!data?.length) {
+      el.innerHTML = '<div class="empty-state" style="padding:40px 0;"><div class="empty-icon">⚡</div><p class="empty-title">No addons installed</p><p class="empty-sub">Install from the popular list below or paste a custom URL</p></div>';
+    } else {
+      el.innerHTML = data.map(addon => `
+        <div class="addon-row">
+          <div class="addon-icon">${getAddonIcon(addon.name)}</div>
+          <div class="addon-info">
+            <div class="addon-name">${addon.name} ${addon.official ? '<span style="color:var(--accent);font-size:11px;font-weight:700;">Official</span>' : ''}</div>
+            <div class="addon-meta">v${addon.version || '?'} · ${addon.description || ''}</div>
+          </div>
+          <div class="addon-actions">
+            <button class="toggle ${addon.enabled ? 'on' : ''}" onclick="toggleAddon('${addon.id}','${addon.addon_id}',${!addon.enabled})"></button>
+            ${!addon.official ? `<button class="btn btn-danger btn-xs" onclick="deleteAddon('${addon.id}','${addon.name}')">✕</button>` : ''}
+          </div>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+// ── Addon management ──────────────────────────────────────────
+function renderPopularAddons() {
+  const el = document.getElementById('popular-addons-list');
+  el.innerHTML = POPULAR_ADDONS.map(a => `
+    <div class="addon-row">
+      <div class="addon-icon">${a.icon}</div>
+      <div class="addon-info">
+        <div class="addon-name">${a.name}</div>
+        <div class="addon-meta">${a.desc}</div>
+      </div>
+      <div class="addon-actions">
+        <button class="btn btn-primary btn-sm" onclick="quickInstall('${a.url}','${a.name}')">Install</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openInstallAddon() {
+  document.getElementById('addon-url-input').value = '';
+  document.getElementById('addon-install-error').style.display = 'none';
+  openModal('modal-install-addon');
+}
+
+async function installAddon() {
+  const url = document.getElementById('addon-url-input').value.trim();
+  if (!url) return;
+  const btn = document.getElementById('install-addon-btn');
+  btn.textContent = 'Installing...'; btn.disabled = true;
+  await doInstallAddon(url);
+  btn.textContent = 'Install Addon'; btn.disabled = false;
+}
+
+async function quickInstall(url, name) {
+  await doInstallAddon(url);
+}
+
+async function doInstallAddon(url) {
+  if (!state.activeProfileId) return toast('Select a profile first', 'error');
+  try {
+    const manifestUrl = url.endsWith('/manifest.json') ? url : url.replace(/\/$/, '') + '/manifest.json';
+    const res = await fetch(manifestUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const manifest = await res.json();
+    if (!manifest.id || !manifest.name) throw new Error('Invalid manifest');
+    const { error } = await db.from('addons').upsert({
+      profile_id: state.activeProfileId,
+      addon_id: manifest.id,
+      name: manifest.name,
+      version: manifest.version || '1.0.0',
+      description: manifest.description || '',
+      transport_url: url.replace('/manifest.json', ''),
+      manifest,
+      enabled: true,
+      official: false,
+    }, { onConflict: 'profile_id,addon_id' });
+    if (error) throw error;
+    closeModal('modal-install-addon');
+    await loadPageData('addons');
+    await updateStats();
+    toast(`${manifest.name} installed!`, 'success');
+  } catch (e) {
+    const errEl = document.getElementById('addon-install-error');
+    if (errEl) { errEl.textContent = 'Failed: ' + e.message; errEl.style.display = 'block'; }
+    toast('Install failed: ' + e.message, 'error');
+  }
+}
+
+async function toggleAddon(rowId, addonId, enabled) {
+  await db.from('addons').update({ enabled }).eq('id', rowId);
+  await loadPageData('addons');
+}
+
+async function deleteAddon(rowId, name) {
+  if (!confirm(`Remove addon "${name}"?`)) return;
+  await db.from('addons').delete().eq('id', rowId);
+  await loadPageData('addons');
+  toast('Addon removed', 'success');
+}
+
+function openCopyAddons() {
+  const other = state.profiles.filter(p => p.id !== state.activeProfileId);
+  const el = document.getElementById('copy-addons-profiles');
+  if (!other.length) { toast('No other profiles to copy from', 'error'); return; }
+  el.innerHTML = other.map(p => `
+    <button class="btn btn-ghost" style="justify-content:flex-start;gap:12px;padding:14px;" onclick="copyAddons('${p.id}','${p.name}')">
+      <span style="font-size:24px;">${p.avatar}</span>
+      <span>${p.name}</span>
+    </button>
+  `).join('');
+  openModal('modal-copy-addons');
+}
+
+async function copyAddons(fromId, fromName) {
+  closeModal('modal-copy-addons');
+  const { data: addons } = await db.from('addons').select('*').eq('profile_id', fromId);
+  if (!addons?.length) return toast(`${fromName} has no addons`, 'error');
+  for (const addon of addons) {
+    await db.from('addons').upsert({
+      profile_id: state.activeProfileId,
+      addon_id: addon.addon_id,
+      name: addon.name,
+      version: addon.version,
+      description: addon.description,
+      transport_url: addon.transport_url,
+      manifest: addon.manifest,
+      enabled: addon.enabled,
+      official: addon.official,
+    }, { onConflict: 'profile_id,addon_id' });
+  }
+  await loadPageData('addons');
+  toast(`Copied ${addons.length} addons from ${fromName}!`, 'success');
+}
+
+// ── Generic remove ────────────────────────────────────────────
+async function removeItem(table, id, page) {
+  await db.from(table).delete().eq('id', id);
+  await loadPageData(page);
+  toast('Removed', 'success');
+}
+
+async function clearHistory() {
+  if (!confirm('Clear all watch history for this profile?')) return;
+  await db.from('watch_history').delete().eq('profile_id', state.activeProfileId);
+  await loadPageData('history');
+  toast('History cleared', 'success');
+}
+
+// ── Navigation ────────────────────────────────────────────────
+function showPage(page, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  if (btn) btn.classList.add('active');
+  loadPageData(page);
+  if (window.innerWidth < 768) toggleSidebar();
+}
+
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+}
+
+// ── Household ID ──────────────────────────────────────────────
+function copyHouseholdId() {
+  navigator.clipboard.writeText(state.householdId).then(() => toast('Household ID copied!', 'success'));
+}
+
+// ── Modal helpers ─────────────────────────────────────────────
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+
+// ── Toast ─────────────────────────────────────────────────────
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = `toast ${type} show`;
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────
+function formatDate(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+function getAddonIcon(name) {
+  const n = name.toLowerCase();
+  if (n.includes('torrent') || n.includes('torrentio')) return '🌊';
+  if (n.includes('cinemeta')) return '🎬';
+  if (n.includes('anime') || n.includes('kitsu')) return '⛩';
+  if (n.includes('subtitle') || n.includes('sub')) return '💬';
+  if (n.includes('poster') || n.includes('rpdb')) return '🖼';
+  return '⚡';
+}
+</script>
+</body>
+</html>
