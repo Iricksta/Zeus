@@ -2,10 +2,12 @@
   "version": 2,
   "builds": [
     { "src": "index.html", "use": "@vercel/static" },
-    { "src": "favicon.png", "use": "@vercel/static" }
+    { "src": "favicon.png", "use": "@vercel/static" },
+    { "src": "zeus_icon.png", "use": "@vercel/static" }
   ],
   "routes": [
     { "src": "/favicon.png", "dest": "/favicon.png" },
+    { "src": "/zeus_icon.png", "dest": "/zeus_icon.png" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]
 }
